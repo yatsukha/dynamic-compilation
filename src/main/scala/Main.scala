@@ -1,8 +1,8 @@
-import reflect.runtime.universe
-import tools.reflect.ToolBox
-
 object Main extends App {
     def compile[R](code: String): (Map[String, Any]) => R = {
+        import reflect.runtime.universe
+        import tools.reflect.ToolBox
+
         val tb = universe.runtimeMirror(getClass.getClassLoader).mkToolBox()
 
         //this actually ended up way cleaner than i anticipated

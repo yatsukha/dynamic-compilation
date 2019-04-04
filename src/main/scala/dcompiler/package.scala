@@ -1,5 +1,4 @@
 package object dcompiler {
-    import scala.reflect.ClassTag
     import collection.mutable.{Map => MutableMap}
 
     def compile(code: String): (MutableMap[String, Double]) => Double = {

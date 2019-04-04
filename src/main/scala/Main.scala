@@ -1,50 +1,51 @@
 object Main extends App {
-    def compile[R](code: String): (Map[String, Any]) => R = {
-        import reflect.runtime.universe
-        import tools.reflect.ToolBox
+    import dcompiler._
+    import parser._
 
-        val tb = universe.runtimeMirror(getClass.getClassLoader).mkToolBox()
+    print("Enter an expression: "); Console.flush()
 
-        //this actually ended up way cleaner than i anticipated
-        tb.compile(
-            tb.parse(
-                s"""
-                    def lambda(variables: Map[String, Any]): Any = {
-                        $code
-                    }
+    val strExpr = io.StdIn.readLine
+    val tree = Parser().buildTree(strExpr)
 
-                    lambda _
-                """.stripMargin
-            )
-        )().asInstanceOf[Map[String, Any] => R]
+    println(s"Expression evaluated to $tree")
+
+    val symbols = collection.mutable.Map[String, Double]()
+    val required = getSymbols(tree)
+
+    if (required.size > 0)
+        println("Enter the values of symbols:")
+
+    for (s <- required) {
+        print(s"$s = "); Console.flush()
+
+        symbols += ((s, io.StdIn.readLine.toDouble))
     }
 
-    import measure.elapsed
+    println("Compiling the function...")
 
-    println("started compilation")
+    val fcn = compile(embed(tree))
 
-    val (time, fcn) = 
-        elapsed(
-            compile[Int](
-                """
-                    def multiply(x: Int, n: Int): Int = {
-                        if (n == 0)
-                            1
-                        else
-                            if (n % 2 == 0)
-                                { val res = multiply(x, n / 2); res * res }
-                            else
-                                { val res = multiply(x, n / 2); res * res * x }
-                    }
+    println("Done.")
+    println("Benchmarking...")
 
-                    multiply(
-                        variables("x").asInstanceOf[Int],
-                        variables("n").asInstanceOf[Int]
-                    )
-                """.stripMargin
-            )
-        )
+    var dIterations = 0;
+    val t0 = System.nanoTime
+    
+    do {
+        fcn(symbols)
+        dIterations += 1
+    } while ((System.nanoTime - t0) / 1000000000 < 1)
 
-    println(s"compile time: ${time.toDouble / 1000000000.toDouble} seconds")
-    println(s"result: ${fcn(Map("x" -> 5, "n" -> 3))}")
+    val evaluator = Evaluator(symbols)
+    var eIterations = 0;
+    val t1 = System.nanoTime
+
+    do {
+        evaluator.eval(tree)
+        eIterations += 1
+    } while ((System.nanoTime - t1) / 1000000000 < 1)
+
+    println("Iterations in 1 second:")
+    println(f" - dynamically compiled: $dIterations%12d.")
+    println(f" - tree evaluation:      $eIterations%12d.")
 }
